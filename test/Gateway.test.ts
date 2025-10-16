@@ -2,11 +2,10 @@ import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 import { GatewayUpgradeable } from "../typechain-types/contracts/gateway/GatewayUpgradeable";
 import { GatewayProxy } from "../typechain-types/contracts/gateway/GatewayProxy";
-// import { CurrencyToken } from "../../typechain-types/contracts/token/currency/CurrencyToken";
-// import { SecurityToken } from "../../typechain-types/contracts/token/security/SecurityToken";
-// import { STOMatchingProxy } from "../../typechain-types/contracts/proxy/STOMatchingProxy";
-// import { STOMatching_v1 } from "../../typechain-types/contracts/test/logicsample/v1/STOMatching_v1";
-// import { STOMatching_v2 } from "../../typechain-types/contracts/test/logicsample/v2/STOMatching_v2";
+
+const ctAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const stAddress = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853";
+const matchingAddress = "0x0165878A594ca255338adfa4d48449f69242Eb8F";
 
 // let ct:CurrencyToken;
 // let st:SecurityToken;
@@ -22,7 +21,6 @@ let receipt;
 describe("Matching 단위 테스트", async function () {
     before(async function() {
         [deployer] = await ethers.getSigners();
-        console.log(deployer.address);
 
         // Gateway Logic 컨트랙트 배포
         const factoryGwLogic = await ethers.getContractFactory("GatewayUpgradeable", {signer: deployer});

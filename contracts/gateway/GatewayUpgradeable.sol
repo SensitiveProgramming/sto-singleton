@@ -218,6 +218,22 @@ contract GatewayUpgradeable is Initializable, AccessControlUpgradeable, UUPSUpgr
         return SecurityTokenUpgradeable(_token[isuNo]).name();
     }
 
+    function getStoSymbol(bytes32 isuNo) external view returns (string memory) {
+        if (!_exists[isuNo]) {
+            revert("isuNo not exists");
+        }
+
+        return SecurityTokenUpgradeable(_token[isuNo]).symbol();
+    }
+
+    function getStoAddress(bytes32 isuNo) external view returns (address) {
+        if (!_exists[isuNo]) {
+            revert("isuNo not exists");
+        }
+
+        return _token[isuNo];
+    }
+
 
 
     // function upgradeStoLogic(address newImplementation) external {
