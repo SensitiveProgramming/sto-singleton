@@ -6,7 +6,7 @@ import {IERC20Lock} from "../extension/IERC20Lock.sol";
 import {DoublyLinkedList} from "../../utils/structs/DoublyLinkedList.sol";
 
 
-contract SecurityTokenUpgradeable is STOSelectableUpgradeable {
+contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
     /// 잔고유형(BalTp)
     bytes32 public constant BalTp_00 = bytes32("00");   // 일반
     bytes32 public constant BalTp_11 = bytes32("11");   // 질권
@@ -32,6 +32,8 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable {
     mapping (bytes32 => mapping(address => uint256)) internal _partitionBalances;
 
     DoublyLinkedList.AddressList internal _holderList;
+
+    error InsufficientPartitionBalance(bytes32 partition, address account, uint256 balance, uint256 needed);
 
     constructor(string memory version) STOSelectableUpgradeable(version) {
 
@@ -70,7 +72,7 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable {
         _update(partition, account, bytes32(bytes("")), address(0), qty);
     }
 
-    function transfer(bytes32 partitionFrom, address accountFrom, bytes32 partitionTo, address accountTo, uint256 qty) external virtual {
+    function transfer(bytes32 partitionFrom, address accountFrom, bytes32 partitionTo, address accountTo, uint256 qty) public virtual {
         _update(partitionFrom, accountFrom, partitionTo, accountTo, qty);
     }
 
@@ -86,6 +88,50 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable {
         return _totalSupply;
     }
 
+    function lock(address account, uint256 lockAmount) public virtual override {
+        uint256 balance = _balances[account];
+        uint256 canLockBalance = _partitionBalances[BalTp_00][account];
+
+        if (_balances[account] < lockAmount) {
+            revert InsufficientBalance(account, balance, lockAmount);
+        } else if (canLockBalance < lockAmount) {
+            revert InsufficientCanLockBalance(account, canLockBalance, lockAmount);
+        }
+
+        _update(BalTp_00, account, BalTp_99, account, lockAmount);
+        emit Lock(account, lockAmount, _partitionBalances[BalTp_99][account]);
+    }
+
+    function unlock(address account, uint256 unlockAmount) public virtual override {
+        _checkCanUnlock(account, unlockAmount);
+        _update(BalTp_99, account, BalTp_00, account, unlockAmount);
+        emit Unlock(account, unlockAmount, _partitionBalances[BalTp_99][account]);
+    }
+
+    function unlockTransfer(address from, address to, uint256 unlockAmount) external virtual override {
+        unlock(from, unlockAmount);
+        transfer(BalTp_00, from, BalTp_00, to, unlockAmount);
+    }
+
+    function unlockTransferWithFee(address from, address to, address feeAddress, uint256 unlockAmount, uint256 fromFee, uint256 toFee) external virtual override {
+        unlock(from, unlockAmount);
+
+        if (fromFee > 0) {
+            transfer(BalTp_99, from, BalTp_99, feeAddress, fromFee);
+            transfer(BalTp_99, from, BalTp_99, to, unlockAmount - fromFee);
+        } else {
+            transfer(BalTp_99, from, BalTp_99, to, unlockAmount);
+        }
+
+        if (toFee > 0) {
+            transfer(BalTp_99, to, BalTp_99, feeAddress, toFee);
+        }
+    }
+
+    function lockedBalanceOf(address account) public view virtual override returns (uint256) {
+        return _partitionBalances[BalTp_99][account];
+    }
+
     function _update(bytes32 partitionFrom, address accountFrom, bytes32 partitionTo, address accountTo, uint256 qty) internal {
         // bytes32 ittFrom = ;
         // bytes32 ittTo = ;
@@ -93,6 +139,10 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable {
         if (accountFrom == address(0)) {
             _totalSupply += qty;
         } else {
+            if (_partitionBalances[partitionFrom][accountFrom] < qty) {
+                revert InsufficientPartitionBalance(partitionFrom, accountFrom, _partitionBalances[partitionFrom][accountFrom], qty);
+            }
+
             _partitionBalances[partitionFrom][accountFrom] -= qty;
             _balances[accountFrom] -= qty;
             // _ittBalances[ittFrom] -= qty;
@@ -122,6 +172,13 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable {
             if (qty > 0 && !DoublyLinkedList.exists(_holderList, accountTo)) {
                 DoublyLinkedList.insert(_holderList, accountTo);
             }
+        }
+    }
+
+    function _checkCanUnlock(address account, uint256 unlockAmount) internal view {
+        uint256 lockedBalance = lockedBalanceOf(account);
+        if (lockedBalance < unlockAmount) {
+            revert InsufficientLockedBalance(account, lockedBalance, unlockAmount);
         }
     }
 }
