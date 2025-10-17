@@ -7,20 +7,17 @@ interface IGateway {
     function tokenRegister(bytes32 isuNo) external returns (address tokenAddress);
     /// 종목정보조회
     function tokenQueryInfo(bytes32 isuNo) external returns (bytes32 isuNoOut, uint256 totalSupply, bool ersYn, bytes32 statusCode);
-    // // function tokenUpdateStatus(bytes32 isuNo, bytes32 status) external;
-    // // function tokenRegIsuErsClm(bytes32 isuNo) external;
-    // // function tokenAbndIsuErsClm(bytes32 isuNo) external;
 
 
     // /** 증권관리 **/
-    // /// 입고
-    // function balanceStockIn(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc) external;
-    // /// 출고
-    // function balanceStockOut(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc) external;
-    // /// 자사대체
-    // function balanceTransfer(bytes32 ittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 desc) external;
-    // /// 타사대체
-    // function balanceTransferToItt(bytes32 fromittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toittNo, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 data, bytes32 desc) external;
+    /// 입고
+    function balanceStockIn(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc) external;
+    /// 출고
+    function balanceStockOut(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc) external;
+    /// 자사대체
+    function balanceTransfer(bytes32 ittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 desc) external;
+    /// 타사대체
+    function balanceTransferToItt(bytes32 fromittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toittNo, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 data, bytes32 desc) external;
 
 
     // /** 계좌조회 **/
@@ -37,4 +34,9 @@ interface IGateway {
     //     bytes32 acntNo,
     //     bytes32 acntNo, 
     // )
+
+    event BalanceStockIn(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc);
+    event BalanceStockOut(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc);
+    event BalanceTransfer(bytes32 ittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 desc);
+    event BalanceTransferToItt(bytes32 fromittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toittNo, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 data, bytes32 desc);
 }

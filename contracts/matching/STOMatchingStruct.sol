@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.28;
 
 import {DoublyLinkedList} from "../utils/structs/DoublyLinkedList.sol";
 import {SortedLinkedList} from "../utils/structs/SortedLinkedList.sol";
@@ -116,7 +116,7 @@ struct OrderBook {
 /// @param decimal 소수점
 /// @param feeAccount 수수료 수신 지갑주소
 /// @param round 소수점 이하 올림/내림 여부 (true: 올림, false: 내림)
-/// 수수료 계산: (feeRatio: 15, decimal: 2 => 수수료: 15 * 10^-2 = 0.15%, 단위 %)
+/// 수수료 계산: (feeRatio: 15, decimal: 2 => 수수료: 15 * 10^(-2) = 0.15%, 단위 %)
 struct Fee {
     uint256 feeRatio;
     uint256 decimal;

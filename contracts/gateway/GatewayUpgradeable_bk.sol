@@ -1,20 +1,86 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {IGateway} from "./IGateway.sol";
 import {MetaDataConstant} from "./MetaDataConstant.sol";
-import {STOUpgradeable} from "../proxy/utils/STOUpgradeable.sol";
 
-import {ISTOMatching} from "../matching/ISTOMatching.sol";
+import {CurrencyToken} from "../token/currency/CurrencyToken.sol";
+import {STOMatching} from "../matching/STOMatching.sol";
+import {STOBeacon} from "../proxy/beacon/STOBeacon.sol";
 import {SecurityTokenUpgradeable} from "../token/security/SecurityTokenUpgradeable.sol";
 import "../proxy/STOSelectableProxy.sol";
 
-contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
+// enum Meta {
+//     Null,
+//     /// 잔고유형(BalTp)
+//     BalTp_00,
+//     BalTp_11,
+//     BalTp_12,
+//     BalTp_13,
+//     BalTp_14,
+//     BalTp_15,
+//     BalTp_21,
+//     BalTp_31,
+
+//     /// 입출고상세코드(IODtlCode)
+//     IODtlCode_11,
+//     IODtlCode_12,
+//     IODtlCode_21,
+//     IODtlCode_22,
+//     IODtlCode_31,
+//     IODtlCode_32,
+//     IODtlCode_41,
+//     IODtlCode_42,
+
+//     /// 거래사유코드(TxRsnCode)
+//     TxRsnCode_111,
+//     TxRsnCode_112,
+//     TxRsnCode_221,
+//     TxRsnCode_222,
+//     TxRsnCode_131,
+//     TxRsnCode_132,
+//     TxRsnCode_241,
+//     TxRsnCode_242,
+//     TxRsnCode_311,
+//     TxRsnCode_312,
+//     TxRsnCode_313,
+//     TxRsnCode_314,
+//     TxRsnCode_315,
+//     TxRsnCode_411,
+//     TxRsnCode_412,
+//     TxRsnCode_413,
+//     TxRsnCode_414,
+//     TxRsnCode_415,
+
+//     /// 종목상태코드(StatusCode)
+//     StatusCode_00,
+//     StatusCode_01,
+
+//     /// 계좌유형(AcntTp)
+//     AcntTp_01,
+//     AcntTp_02
+// }
+
+abstract contract GatewayUpgradeable_bk is Initializable, AccessControlUpgradeable, UUPSUpgradeable, IGateway {
+    bytes32 private immutable VERSION;
+
+    /// Role //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @dev 계좌관리기관 권한
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// Contract
-    address internal _stoBeacon;
+    address internal _currencyToken;
     address internal _stoMatching;
+    address internal _stoBeacon;
+    // address internal _stoLogic;
+
+    /// Meta data
+    mapping (uint256 => bytes32) internal _meta;
 
     /// 종목관리
     mapping (bytes32 => address) internal _token;
@@ -22,20 +88,74 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
     mapping (bytes32 => bool) internal _ersYn;
     mapping (bytes32 => bytes32) internal _statusCode;
 
-    constructor(string memory version) STOUpgradeable(version) {
+    constructor(string memory version) {
         _disableInitializers();
+        VERSION = bytes32(abi.encodePacked(version));
     }
 
-    function initialize(address stoBeacon, address stoMatching) public virtual initializer {
+    function initialize() public initializer {
         __AccessControl_init();
         __UUPSUpgradeable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _grantRole(UPGRADER_ROLE, _msgSender());
         _grantRole(ADMIN_ROLE, _msgSender());
 
-        _stoBeacon = stoBeacon;
-        _stoMatching = stoMatching;
+        // /// 잔고유형(BalTp)
+        // _meta[uint256(Meta.BalTp_00)] = bytes32(bytes("00"));
+        // _meta[uint256(Meta.BalTp_11)] = bytes32(bytes("11"));
+        // _meta[uint256(Meta.BalTp_12)] = bytes32(bytes("12"));
+        // _meta[uint256(Meta.BalTp_13)] = bytes32(bytes("13"));
+        // _meta[uint256(Meta.BalTp_14)] = bytes32(bytes("14"));
+        // _meta[uint256(Meta.BalTp_15)] = bytes32(bytes("15"));
+        // _meta[uint256(Meta.BalTp_21)] = bytes32(bytes("21"));
+        // _meta[uint256(Meta.BalTp_31)] = bytes32(bytes("31"));
+
+        // /// 입출고상세코드(IODtlCode)
+        // _meta[uint256(Meta.IODtlCode_11)] = bytes32(bytes("11"));
+        // _meta[uint256(Meta.IODtlCode_12)] = bytes32(bytes("12"));
+        // _meta[uint256(Meta.IODtlCode_21)] = bytes32(bytes("21"));
+        // _meta[uint256(Meta.IODtlCode_22)] = bytes32(bytes("22"));
+        // _meta[uint256(Meta.IODtlCode_31)] = bytes32(bytes("31"));
+        // _meta[uint256(Meta.IODtlCode_32)] = bytes32(bytes("32"));
+        // _meta[uint256(Meta.IODtlCode_41)] = bytes32(bytes("41"));
+        // _meta[uint256(Meta.IODtlCode_42)] = bytes32(bytes("42"));
+
+        // /// 거래사유코드(TxRsnCode)
+        // _meta[uint256(Meta.TxRsnCode_111)] = bytes32(bytes("111"));
+        // _meta[uint256(Meta.TxRsnCode_112)] = bytes32(bytes("112"));
+        // _meta[uint256(Meta.TxRsnCode_221)] = bytes32(bytes("221"));
+        // _meta[uint256(Meta.TxRsnCode_222)] = bytes32(bytes("222"));
+        // _meta[uint256(Meta.TxRsnCode_131)] = bytes32(bytes("131"));
+        // _meta[uint256(Meta.TxRsnCode_132)] = bytes32(bytes("132"));
+        // _meta[uint256(Meta.TxRsnCode_241)] = bytes32(bytes("241"));
+        // _meta[uint256(Meta.TxRsnCode_242)] = bytes32(bytes("242"));
+        // _meta[uint256(Meta.TxRsnCode_311)] = bytes32(bytes("311"));
+        // _meta[uint256(Meta.TxRsnCode_312)] = bytes32(bytes("312"));
+        // _meta[uint256(Meta.TxRsnCode_313)] = bytes32(bytes("313"));
+        // _meta[uint256(Meta.TxRsnCode_314)] = bytes32(bytes("314"));
+        // _meta[uint256(Meta.TxRsnCode_315)] = bytes32(bytes("315"));
+        // _meta[uint256(Meta.TxRsnCode_411)] = bytes32(bytes("411"));
+        // _meta[uint256(Meta.TxRsnCode_412)] = bytes32(bytes("412"));
+        // _meta[uint256(Meta.TxRsnCode_413)] = bytes32(bytes("413"));
+        // _meta[uint256(Meta.TxRsnCode_414)] = bytes32(bytes("414"));
+        // _meta[uint256(Meta.TxRsnCode_415)] = bytes32(bytes("415"));
+
+        // /// 종목상태코드(StatusCode)
+        // _meta[uint256(Meta.StatusCode_00)] = bytes32(bytes("00"));
+        // _meta[uint256(Meta.StatusCode_01)] = bytes32(bytes("01"));
+
+        // /// 계좌유형(AcntTp)
+        // _meta[uint256(Meta.AcntTp_01)] = bytes32(bytes("01"));
+        // _meta[uint256(Meta.AcntTp_02)] = bytes32(bytes("02"));
+
+        _currencyToken = address(new CurrencyToken());
+        _stoMatching = address(new STOMatching(_currencyToken));
+        address stoLogic = address(new SecurityTokenUpgradeable("STO v1.0"));
+        _stoBeacon = address(new STOBeacon(stoLogic, address(this), address(this)));
+    }
+
+    function getCurrencyToken() external view returns (address) {
+        return _currencyToken;
     }
 
     function getStoMatching() external view returns (address) {
@@ -44,6 +164,24 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
 
     function getStoBeacon() external view returns (address) {
         return _stoBeacon;
+    }
+
+    function getStoLogic() external view returns (address) {
+        return STOBeacon(_stoBeacon).implementation();
+    }
+
+    function getVersion() external view virtual returns (string memory) {
+        return string(abi.encodePacked(VERSION));
+    }
+
+    function getImplementation() external view virtual returns (address) {
+        return ERC1967Utils.getImplementation();
+    }
+
+    function deployNewStoLogic(string memory version) external virtual returns (address) {
+        address stoLogic = address(new SecurityTokenUpgradeable(version));
+        STOBeacon(_stoBeacon).upgradeTo(stoLogic);
+        return STOBeacon(_stoBeacon).implementation();
     }
 
     function tokenRegister(bytes32 isuNo) external virtual override returns (address) {
@@ -58,7 +196,7 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
         return sto;
     }
 
-    function tokenQueryInfo(bytes32 isuNo) external view virtual override returns (bytes32 isuNoOut, uint256 totalSupply, bool ersYn, bytes32 statusCode) {
+    function tokenQueryInfo(bytes32 isuNo) external view returns (bytes32 isuNoOut, uint256 totalSupply, bool ersYn, bytes32 statusCode) {
         if (!_exists[isuNo]) {
             revert("isuNo not exists");
         }
@@ -67,25 +205,17 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
         return (isuNo, SecurityTokenUpgradeable(sto).totalSupply(), _ersYn[isuNo], _statusCode[isuNo]);
     }
 
-    function balanceStockIn(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc) external virtual override {
+    function balanceStockIn(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc) external {
+
         emit BalanceStockIn(ittNo, acntNo, acntTp, trustYn, isuNo, qty, balTp, iODtlCode, trxCode, desc);
     }
 
-    function balanceStockOut(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc) external virtual override {
-        emit BalanceStockOut(ittNo, acntNo, acntTp, trustYn, isuNo, qty, balTp, iODtlCode, trxCode, desc);
-    }
-
-    function balanceTransfer(bytes32 ittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 desc) external virtual override {
-        emit BalanceTransfer(ittNo, fromAcntNo, fromAcntTp, fromTrustYn, toAcntNo, toAcntTp, toTrustYn, isuNo, qty, desc);
-    }
-
-    function balanceTransferToItt(bytes32 fromittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toittNo, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 data, bytes32 desc) external virtual override {
-        emit BalanceTransferToItt(fromittNo, fromAcntNo, fromAcntTp,  fromTrustYn, toittNo, toAcntNo, toAcntTp, toTrustYn, isuNo, qty, data, desc);
-    }
 
 
 
-    function getStoName(bytes32 isuNo) external view virtual returns (string memory) {
+
+
+    function getStoName(bytes32 isuNo) external view returns (string memory) {
         if (!_exists[isuNo]) {
             revert("isuNo not exists");
         }
@@ -93,7 +223,7 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
         return SecurityTokenUpgradeable(_token[isuNo]).name();
     }
 
-    function getStoSymbol(bytes32 isuNo) external view virtual returns (string memory) {
+    function getStoSymbol(bytes32 isuNo) external view returns (string memory) {
         if (!_exists[isuNo]) {
             revert("isuNo not exists");
         }
@@ -101,7 +231,7 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
         return SecurityTokenUpgradeable(_token[isuNo]).symbol();
     }
 
-    function getStoAddress(bytes32 isuNo) external view virtual returns (address) {
+    function getStoAddress(bytes32 isuNo) external view returns (address) {
         if (!_exists[isuNo]) {
             revert("isuNo not exists");
         }
@@ -256,4 +386,5 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
     // mapping (bytes32 => bytes32[]) internal _ksdAccountErasureList;
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    function _authorizeUpgrade(address newImplementation) internal virtual override onlyRole(ADMIN_ROLE) {}
 }
