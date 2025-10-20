@@ -39,10 +39,10 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
 
     }
 
-    function initialize(string memory stName, string memory stSymbol) public initializer {
+    function initialize(string memory stName) public initializer {
         __UUPSUpgradeable_init();
         _name = stName;
-        _symbol = stSymbol;
+        _symbol = _name;
 
         _partitionList.push(BalTp_00);
         _indexAllPartitions[BalTp_00] = _partitionList.length;
@@ -86,6 +86,27 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
 
     function totalSupply() external view returns (uint256) {
         return _totalSupply;
+    }
+
+    function allBalanceOf(address account) external view returns (bytes32[] memory, uint256[] memory) {
+        bytes32[] memory balTp = new bytes32[](9);
+        uint256[] memory balances = new uint256[](9);
+
+        balTp[0] = BalTp_00;
+        balTp[1] = BalTp_11;
+        balTp[2] = BalTp_12;
+        balTp[3] = BalTp_13;
+        balTp[4] = BalTp_14;
+        balTp[5] = BalTp_15;
+        balTp[6] = BalTp_21;
+        balTp[7] = BalTp_31;
+        balTp[8] = BalTp_99;
+
+        for(uint256 i=0; i<9; i++) {
+            balances[i] = _partitionBalances[balTp[i]][account];
+        }
+
+        return (balTp, balances);
     }
 
     function lock(address account, uint256 lockAmount) public virtual override {

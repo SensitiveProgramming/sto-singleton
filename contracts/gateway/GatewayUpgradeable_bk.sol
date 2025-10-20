@@ -190,7 +190,7 @@ abstract contract GatewayUpgradeable_bk is Initializable, AccessControlUpgradeab
         }
 
         address sto = address(new STOSelectableProxy(true, _stoBeacon, address(0), ""));
-        SecurityTokenUpgradeable(sto).initialize(string(abi.encodePacked(isuNo)), string(abi.encodePacked(isuNo)));
+        SecurityTokenUpgradeable(sto).initialize(string(abi.encodePacked(isuNo)));
         _token[isuNo] = sto;
         _exists[isuNo] = true;
         return sto;
