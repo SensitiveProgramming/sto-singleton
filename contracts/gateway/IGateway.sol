@@ -15,24 +15,24 @@ interface IGateway {
         bytes32[20] _reserved;
     }
 
-    // /** 사용자계좌등록 **/
-    // /// 위탁계좌등록
-    // function addAccount(bytes32 ittNo, bytes32 acntNo, address acntAddress) external;
-    // /// 위탁계좌삭제
-    // function removeAccount(bytes32 ittNo, bytes32 acntNo) external;
-    // /// 자기계좌등록
-    // function addSelfAccount(bytes32 ittNo, bytes32 acntNo, address acntAddress) external;
-    // /// 위탁계좌삭제
-    // function removeSelfAccount(bytes32 ittNo, bytes32 acntNo) external;
-    // /// 계좌지갑주소조회
-    // function getAccountAddress(bytes32 ittNo, bytes32 acntNo) external returns (bool status, address acntAddress);
-    // /// 계좌조회
-    // function getAddressInfo(address acntAddress) external returns (bool status, bytes32 ittNo, bytes32 acntNo);
+    /** 사용자계좌등록 **/
+    /// 위탁계좌등록
+    function addAccount(bytes32 ittNo, bytes32 acntNo, address acntAddress) external;
+    /// 위탁계좌삭제
+    function removeAccount(bytes32 ittNo, bytes32 acntNo) external;
+    /// 자기계좌등록
+    function addSelfAccount(bytes32 ittNo, bytes32 acntNo, address acntAddress) external;
+    /// 위탁계좌삭제
+    function removeSelfAccount(bytes32 ittNo, bytes32 acntNo) external;
+    /// 계좌지갑주소조회
+    function getAccountAddress(bytes32 ittNo, bytes32 acntNo) external returns (bool status, address acntAddress);
+    /// 계좌조회
+    function getAddressInfo(address acntAddress) external returns (bool status, bytes32 ittNo, bytes32 acntNo);
 
 
     /** 종목관리 **/
     /// 종목등록
-    function tokenRegister(bytes32 isuNo) external returns (address tokenAddress);
+    function tokenRegister(bytes32 isuNo) external;
     /// 종목정보조회
     function tokenQueryInfo(bytes32 isuNo) external returns (bytes32 isuNoOut, uint256 totalSupply, bool ersYn, bytes32 statusCode);
 
@@ -63,6 +63,7 @@ interface IGateway {
     //     bytes32 acntNo, 
     // )
 
+    event TokenRegister(bytes32 isuNo, address tokenAddress);
     event BalanceStockIn(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc);
     event BalanceStockOut(bytes32 ittNo, bytes32 acntNo, bytes32 acntTp, bytes32 trustYn, bytes32 isuNo, uint256 qty, bytes32 balTp, bytes32 iODtlCode, bytes32 trxCode, bytes32 desc);
     event BalanceTransfer(bytes32 ittNo, bytes32 fromAcntNo, bytes32 fromAcntTp, bytes32 fromTrustYn, bytes32 toAcntNo, bytes32 toAcntTp, bytes32 toTrustYn, bytes32 isuNo, uint256 qty, bytes32 desc);

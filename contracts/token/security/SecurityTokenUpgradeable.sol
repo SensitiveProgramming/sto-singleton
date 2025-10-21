@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {STOSelectableUpgradeable} from "../../proxy/utils/STOSelectableUpgradeable.sol";
 import {IERC20Lock} from "../extension/IERC20Lock.sol";
 import {DoublyLinkedList} from "../../utils/structs/DoublyLinkedList.sol";
+import {IWhitelist} from "../../utils/whitelist/IWhitelist.sol";
 
 
 contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
@@ -20,7 +21,7 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
 
     /// variables
     mapping (address => uint256) internal _balances;
-    mapping (address => uint256) internal _ittBalances;
+    mapping (bytes32 => uint256) internal _ittBalances;
     uint256 internal _totalSupply;
     string internal _name;
     string internal _symbol;
@@ -32,17 +33,21 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
     mapping (bytes32 => mapping(address => uint256)) internal _partitionBalances;
 
     DoublyLinkedList.AddressList internal _holderList;
+    address internal _whitelist;
 
     error InsufficientPartitionBalance(bytes32 partition, address account, uint256 balance, uint256 needed);
+    error SenderNotInWhitelist(address sender);
+    error ReceiverNotInWhitelist(address receiver);
 
     constructor(string memory version) STOSelectableUpgradeable(version) {
 
     }
 
-    function initialize(string memory stName) public initializer {
+    function initialize(string memory stName, address whitelist) public initializer {
         __UUPSUpgradeable_init();
         _name = stName;
         _symbol = _name;
+        _whitelist = whitelist;
 
         _partitionList.push(BalTp_00);
         _indexAllPartitions[BalTp_00] = _partitionList.length;
@@ -154,19 +159,23 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
     }
 
     function _update(bytes32 partitionFrom, address accountFrom, bytes32 partitionTo, address accountTo, uint256 qty) internal {
-        // bytes32 ittFrom = ;
-        // bytes32 ittTo = ;
+        ( bool statusFrom, bytes32 ittFrom, ) = IWhitelist(_whitelist).getAddressInfo(accountFrom);
+        ( bool statusTo, bytes32 ittTo, ) = IWhitelist(_whitelist).getAddressInfo(accountTo);
 
         if (accountFrom == address(0)) {
             _totalSupply += qty;
         } else {
+            if (!statusFrom) {
+                revert SenderNotInWhitelist(accountFrom);
+            }
+
             if (_partitionBalances[partitionFrom][accountFrom] < qty) {
                 revert InsufficientPartitionBalance(partitionFrom, accountFrom, _partitionBalances[partitionFrom][accountFrom], qty);
             }
 
             _partitionBalances[partitionFrom][accountFrom] -= qty;
             _balances[accountFrom] -= qty;
-            // _ittBalances[ittFrom] -= qty;
+            _ittBalances[ittFrom] -= qty;
  
             if (_balances[accountFrom] == 0 && DoublyLinkedList.exists(_holderList, accountFrom)) {
                 DoublyLinkedList.remove(_holderList, accountFrom);
@@ -176,6 +185,10 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
         if (accountTo == address(0)) {
             _totalSupply -= qty;
         } else {
+            if (!statusTo) {
+                revert ReceiverNotInWhitelist(accountFrom);
+            }
+
             if (_indexAllPartitions[partitionTo] == 0) {
                 _partitionList.push(partitionTo);
                 _indexAllPartitions[partitionTo] = _partitionList.length;
@@ -188,7 +201,7 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
 
             _partitionBalances[partitionTo][accountTo] += qty;
             _balances[accountTo] += qty;
-            // _ittBalances[ittTo] += qty;
+            _ittBalances[ittTo] += qty;
 
             if (qty > 0 && !DoublyLinkedList.exists(_holderList, accountTo)) {
                 DoublyLinkedList.insert(_holderList, accountTo);

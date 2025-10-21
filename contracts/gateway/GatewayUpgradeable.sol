@@ -7,7 +7,7 @@ import {STOUpgradeable} from "../proxy/utils/STOUpgradeable.sol";
 import {DoublyLinkedList} from "../utils/structs/DoublyLinkedList.sol";
 
 import {ISTOMatching} from "../matching/ISTOMatching.sol";
-// import {IWhitelist} from "../utils/whitelist/IWhitelist.sol";
+import {IWhitelist} from "../utils/whitelist/IWhitelist.sol";
 import {SecurityTokenUpgradeable} from "../token/security/SecurityTokenUpgradeable.sol";
 import "../proxy/STOSelectableProxy.sol";
 
@@ -53,45 +53,46 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
     }
 
 
-    // /** 사용자계좌등록 **/
-    // function addAccount(bytes32 ittNo, bytes32 acntNo, address acntAddress) external virtual override {
-    //     IWhitelist(_whitelist).addAccount(ittNo, acntNo, acntAddress);
-    //     _acntTp[ittNo][acntNo] = AcntTp_02;
-    // }
+    /** 사용자계좌등록 **/
+    function addAccount(bytes32 ittNo, bytes32 acntNo, address acntAddress) external virtual override {
+        IWhitelist(_whitelist).addAccount(ittNo, acntNo, acntAddress);
+        _acntTp[ittNo][acntNo] = AcntTp_02;
+    }
 
-    // function removeAccount(bytes32 ittNo, bytes32 acntNo) external virtual override {
-    //      IWhitelist(_whitelist).removeAccount(ittNo, acntNo);
-    // }
+    function removeAccount(bytes32 ittNo, bytes32 acntNo) external virtual override {
+         IWhitelist(_whitelist).removeAccount(ittNo, acntNo);
+    }
 
-    // function addSelfAccount(bytes32 ittNo, bytes32 acntNo, address acntAddress) external virtual override {
-    //     IWhitelist(_whitelist).addAccount(ittNo, acntNo, acntAddress);
-    //     _acntTp[ittNo][acntNo] = AcntTp_01;
-    // }
+    function addSelfAccount(bytes32 ittNo, bytes32 acntNo, address acntAddress) external virtual override {
+        IWhitelist(_whitelist).addAccount(ittNo, acntNo, acntAddress);
+        _acntTp[ittNo][acntNo] = AcntTp_01;
+    }
 
-    // function removeSelfAccount(bytes32 ittNo, bytes32 acntNo) external virtual override {
-    //      IWhitelist(_whitelist).removeAccount(ittNo, acntNo);
-    // }
+    function removeSelfAccount(bytes32 ittNo, bytes32 acntNo) external virtual override {
+         IWhitelist(_whitelist).removeAccount(ittNo, acntNo);
+    }
 
-    // function getAccountAddress(bytes32 ittNo, bytes32 acntNo) external virtual override returns (bool, address) {
-    //     return IWhitelist(_whitelist).getAccountAddress(ittNo, acntNo);
-    // }
+    function getAccountAddress(bytes32 ittNo, bytes32 acntNo) external view virtual override returns (bool, address) {
+        return IWhitelist(_whitelist).getAccountAddress(ittNo, acntNo);
+    }
 
-    // function getAddressInfo(address acntAddress) external virtual override returns (bool, bytes32, bytes32) {
-    //     return IWhitelist(_whitelist).getAddressInfo(acntAddress);
-    // }
+    function getAddressInfo(address acntAddress) external view virtual override returns (bool, bytes32, bytes32) {
+        return IWhitelist(_whitelist).getAddressInfo(acntAddress);
+    }
 
 
     /** 종목관리 **/
-    function tokenRegister(bytes32 isuNo) external virtual override returns (address) {
+    function tokenRegister(bytes32 isuNo) external virtual override {
         if (_exists[isuNo]) {
             revert("isuNo already exists");
         }
 
         address sto = address(new STOSelectableProxy(true, _stoBeacon, address(0), ""));
-        SecurityTokenUpgradeable(sto).initialize(string(abi.encodePacked(isuNo)));
+        // SecurityTokenUpgradeable(sto).initialize(string(abi.encodePacked(isuNo)), _whitelist);
         _token[isuNo] = sto;
         _exists[isuNo] = true;
-        return sto;
+
+        emit TokenRegister(isuNo, sto);
     }
 
     function tokenQueryInfo(bytes32 isuNo) external view virtual override returns (bytes32 isuNoOut, uint256 totalSupply, bool ersYn, bytes32 statusCode) {
@@ -191,12 +192,16 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
 
 
     /** 기타 **/
+    function getStoBeacon() external view returns (address) {
+        return _stoBeacon;
+    }
+
     function getStoMatching() external view returns (address) {
         return _stoMatching;
     }
 
-    function getStoBeacon() external view returns (address) {
-        return _stoBeacon;
+    function getWhitelist() external view returns (address) {
+        return _whitelist;
     }
 
     function getStoName(bytes32 isuNo) external view virtual returns (string memory) {
@@ -235,14 +240,13 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
     }
 
     function _checkAcntNo(bytes32 ittNo, bytes32 acntNo) internal view returns (address) {
-        // (bool status, address acntAddress) = IWhitelist(_whitelist).getAccountAddress(ittNo, acntNo);
+        (bool status, address acntAddress) = IWhitelist(_whitelist).getAccountAddress(ittNo, acntNo);
 
-        // if (!status) {
-        //     revert ("ittNo, acntNo not registered");
-        // }
+        if (!status) {
+            revert ("ittNo, acntNo not registered");
+        }
 
-        // return acntAddress;
-        return address(0);
+        return acntAddress;
     }
 
     // function upgradeStoLogic(address newImplementation) external {
