@@ -35,6 +35,11 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
     DoublyLinkedList.AddressList internal _holderList;
     address internal _whitelist;
 
+    event Issue(address indexed to, uint256 value);
+    event Redeem(address indexed from, uint256 value);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
     error InsufficientPartitionBalance(bytes32 partition, address account, uint256 balance, uint256 needed);
     error SenderNotInWhitelist(address sender);
     error ReceiverNotInWhitelist(address receiver);
@@ -71,14 +76,17 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
 
     function issue(bytes32 partition, address account, uint256 qty) external virtual {
         _update(bytes32(bytes("")), address(0), partition, account, qty);
+        emit Issue(account, qty);
     }
 
     function redeem(bytes32 partition, address account, uint256 qty) external virtual {
         _update(partition, account, bytes32(bytes("")), address(0), qty);
+        emit Redeem(account, qty);
     }
 
     function transfer(bytes32 partitionFrom, address accountFrom, bytes32 partitionTo, address accountTo, uint256 qty) public virtual {
         _update(partitionFrom, accountFrom, partitionTo, accountTo, qty);
+        emit Transfer(accountFrom, accountTo, qty);
     }
 
     function name() external view returns (string memory) {

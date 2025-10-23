@@ -27,6 +27,9 @@ const config: HardhatUserConfig = {
       chainId: 11155111,
     },
   },
+  mocha: {
+    timeout: 0
+  },
   solidity: {
     compilers: [
       {

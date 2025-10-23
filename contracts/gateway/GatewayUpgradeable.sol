@@ -6,11 +6,11 @@ import {MetaDataConstant} from "./MetaDataConstant.sol";
 import {STOUpgradeable} from "../proxy/utils/STOUpgradeable.sol";
 import {DoublyLinkedList} from "../utils/structs/DoublyLinkedList.sol";
 
+import "../matching/STOMatchingStruct.sol";
 import {ISTOMatching} from "../matching/ISTOMatching.sol";
 import {IWhitelist} from "../utils/whitelist/IWhitelist.sol";
 import {SecurityTokenUpgradeable} from "../token/security/SecurityTokenUpgradeable.sol";
 import "../proxy/STOSelectableProxy.sol";
-
 
 contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -88,9 +88,10 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
         }
 
         address sto = address(new STOSelectableProxy(true, _stoBeacon, address(0), ""));
-        // SecurityTokenUpgradeable(sto).initialize(string(abi.encodePacked(isuNo)), _whitelist);
+        SecurityTokenUpgradeable(sto).initialize(string(abi.encodePacked(isuNo)), _whitelist);
         _token[isuNo] = sto;
         _exists[isuNo] = true;
+        _statusCode[isuNo] = bytes32("00");
 
         emit TokenRegister(isuNo, sto);
     }
@@ -157,11 +158,10 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
 
 
     /** 계좌조회 **/
-    function accountQueryBalance(bytes32 ittNo, bytes32 acntNo) external virtual override returns (bytes32, bytes32, bytes32[] memory, bytes32[][] memory, uint256[][] memory, uint256[][] memory, bytes32[][] memory) {
+    function accountQueryBalance(bytes32 ittNo, bytes32 acntNo) external view virtual override returns (bytes32, bytes32, bytes32[] memory, bytes32[][] memory, uint256[][] memory, uint256[][] memory, bytes32[][] memory) {
         address acntAddress = _checkAcntNo(ittNo, acntNo);
         uint256 length = DoublyLinkedList.length(_acntTokens[ittNo][acntNo]);
-        bytes32[] memory isuNo = new bytes32[](length);
-
+        bytes32[] memory isuNo = DoublyLinkedList.getAllList(_acntTokens[ittNo][acntNo]);
         bytes32[][] memory balTp = new bytes32[][](length*9);
         uint256[][] memory curr = new uint256[][](length*9);
 
@@ -176,7 +176,7 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
         return (ittNo, acntNo, isuNo, balTp, curr, bf, txid);
     }
 
-    function accountQueryBalanceByIsuNo(bytes32 ittNo, bytes32 isuNo, bytes32 acntNo) external virtual override returns (bytes32, bytes32, bytes32, bytes32, bytes32[] memory, uint256[] memory, uint256[] memory, bytes32[] memory) {
+    function accountQueryBalanceByIsuNo(bytes32 ittNo, bytes32 isuNo, bytes32 acntNo) external view virtual override returns (bytes32, bytes32, bytes32, bytes32, bytes32[] memory, uint256[] memory, uint256[] memory, bytes32[] memory) {
         address tokenAddress = _checkIsuNo(isuNo);
         address acntAddress = _checkAcntNo(ittNo, acntNo);
 
@@ -189,6 +189,65 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
     }
 
     // function accountQueryTransaction(bytes32 ittNo, bytes32 acntNo, txid) external virtual override returns ()
+
+
+    /** 거래 **/
+    function placeBuyOrder(uint256 orderId, bytes32 ittNo, bytes32 acntNo, bytes32 isuNo, uint256 price, uint256 qty) external virtual override {
+        address tokenAddress = _checkIsuNo(isuNo);
+        address acntAddress = _checkAcntNo(ittNo, acntNo);
+        ISTOMatching(_stoMatching).placeBuyOrder(orderId, acntAddress, tokenAddress, price, qty);
+        emit BuyOrderPlaced(orderId, ittNo, acntNo, isuNo, price, qty, block.timestamp);
+    }
+
+    function placeSellOrder(uint256 orderId, bytes32 ittNo, bytes32 acntNo, bytes32 isuNo, uint256 price, uint256 qty) external virtual override {
+        address tokenAddress = _checkIsuNo(isuNo);
+        address acntAddress = _checkAcntNo(ittNo, acntNo);
+        ISTOMatching(_stoMatching).placeSellOrder(orderId, acntAddress, tokenAddress, price, qty);
+        emit SellOrderPlaced(orderId, ittNo, acntNo, isuNo, price, qty, block.timestamp);
+    }
+
+    function cancelBuyOrder(uint256 orderId) external virtual override {
+        ISTOMatching(_stoMatching).cancelBuyOrder(orderId);
+        emit BuyOrderCanceled(orderId, block.timestamp);
+    }
+
+    function cancelSellOrder(uint256 orderId) external virtual override {
+        ISTOMatching(_stoMatching).cancelSellOrder(orderId);
+        emit SellOrderCanceled(orderId, block.timestamp);
+    }
+
+    function replaceBuyOrder(uint256 oldOrderId, uint256 newOrderId, uint256 price, uint256 qty) external virtual override {
+        ISTOMatching(_stoMatching).replaceBuyOrder(oldOrderId, newOrderId, price, qty);
+        emit BuyOrderReplaced(oldOrderId, newOrderId, block.timestamp);
+    }
+
+    function replaceSellOrder(uint256 oldOrderId, uint256 newOrderId, uint256 price, uint256 qty) external virtual override {
+        ISTOMatching(_stoMatching).replaceSellOrder(oldOrderId, newOrderId, price, qty);
+        emit SellOrderReplaced(oldOrderId, newOrderId, block.timestamp);
+    }
+
+    function getOrder(uint256 orderId) external view virtual override returns (Order memory) {
+        return ISTOMatching(_stoMatching).getOrder(orderId);
+    }
+
+    function getOrderBatch(uint256[] memory orderId) external view virtual override returns (Order[] memory) {
+        return ISTOMatching(_stoMatching).getOrderBatch(orderId);
+    }
+
+    function getQuoteOrders(bytes32 isuNo, uint256 price) external view virtual override returns (Quote memory quote, Order[] memory) {
+        address tokenAddress = _checkIsuNo(isuNo);
+        return ISTOMatching(_stoMatching).getQuoteOrders(tokenAddress, price);
+    }
+
+    function getAllQuoteList(bytes32 isuNo) external view virtual override returns (Quote[] memory, Quote[] memory) {
+        address tokenAddress = _checkIsuNo(isuNo);
+        return ISTOMatching(_stoMatching).getAllQuoteList(tokenAddress);
+    }
+
+    function getOrderBook(bytes32 isuNo) external view virtual override returns (uint256[] memory) {
+        address tokenAddress = _checkIsuNo(isuNo);
+        return ISTOMatching(_stoMatching).getOrderBook(tokenAddress);
+    }
 
 
     /** 기타 **/
@@ -248,150 +307,4 @@ contract GatewayUpgradeable is IGateway, MetaDataConstant, STOUpgradeable {
 
         return acntAddress;
     }
-
-    // function upgradeStoLogic(address newImplementation) external {
-
-    // }
-
-    // function upgradeGatewayLogic(address newImplementation) external {
-        
-    // }
-
-    // /// ERC20 (Fungible Token Standard) variables /////////////////////////////////////////////////////////////////////////////////////////
-    // /// @dev 토큰 잔고
-    // mapping (address => uint256) internal _balances;
-    // /// @dev 토큰 전송 위임
-    // mapping (address => mapping(address => uint256)) internal _allowances;
-    // /// @dev 토큰 총량
-    // uint256 internal _totalSupply;
-    // /// @dev 토큰 명
-    // string internal _name;
-    // /// @dev 토큰 심볼
-    // string internal _symbol;
-    // /// @dev 토큰 데시멀
-    // uint8 internal _decimals;
-    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-    // function tokenRegister(bytes32 isuNo) external virtual override {
-
-    //     // _token[isuNo] = address(11);
-    // }
-
-    // function tokenQueryInfo(bytes32 isin) external virtual {
-    //     _isuNo[isin];
-    // }
-
-
-
-    // /// Role //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // /// @dev KSD 권한
-    // bytes32 public constant KSD_ROLE = keccak256("KSD_ROLE");
-    // /// @dev 매니저 권한
-    // bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    // /// @dev 컨트롤러 권한
-    // bytes32 public constant CONTROLLER_ROLE = keccak256("CONTROLLER_ROLE");
-    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-    // /// ERC20 (Fungible Token Standard) variables /////////////////////////////////////////////////////////////////////////////////////////
-    // /// @dev 토큰 잔고
-    // mapping (address => uint256) internal _balances;
-    // /// @dev 토큰 전송 위임
-    // mapping (address => mapping(address => uint256)) internal _allowances;
-    // /// @dev 토큰 총량
-    // uint256 internal _totalSupply;
-    // /// @dev 토큰 명
-    // string internal _name;
-    // /// @dev 토큰 심볼
-    // string internal _symbol;
-    // /// @dev 토큰 데시멀
-    // uint8 internal _decimals;
-    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-    // /// ERC-1410 (Partially Fungible Token Standard) variables ////////////////////////////////////////////////////////////////////////////
-    // /// @dev 모든 파티션 목록
-    // bytes32[] internal _partitionList;
-    // /// @dev 모든 파티션 인덱스
-    // mapping (bytes32 => uint256) internal _indexAllPartitions;
-    // /// @dev 지갑주소 파티션 목록
-    // mapping (address => bytes32[]) internal _accountPartitions;
-    // /// @dev 지갑주소 파티션 인덱스
-    // mapping (address => mapping(bytes32 => uint256)) internal _indexAccountPartitions;
-    // /// @dev 지갑주소 파티션 토큰 잔고
-    // mapping (bytes32 => mapping(address => uint256)) internal _partitionBalances;
-    // /// @dev 전체 파티션 토큰 전송 위임 여부
-    // mapping (address => mapping(address => bool)) internal _allPartitionAllowances;
-    // /// @dev 특정 파티션 토큰 전송 위임 여부
-    // mapping (bytes32 => mapping(address => mapping(address => bool))) internal _partitionAllowances;
-    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-    // /// ERC-1594 (Core Security Token Standard) variables /////////////////////////////////////////////////////////////////////////////////
-    // /// @dev 발행 가능 여부
-    // bool internal _issuableStatus;
-    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-    // /// ERC-1643 (Document Management Standard) variables /////////////////////////////////////////////////////////////////////////////////
-    // /// @dev 문서 uri
-    // mapping (bytes32 => string) internal _documentUri;
-    // /// @dev 문서 해시
-    // mapping (bytes32 => bytes32) internal _documentHash;
-    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-    // /// ERC-1644 (Controller Token Operation Standard) variables //////////////////////////////////////////////////////////////////////////
-    // uint256 internal _controllerNumOf;
-    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-    // /// SecurityToken extension variables /////////////////////////////////////////////////////////////////////////////////////////////////
-    // /// @dev initial 파티션
-    // /// @notice 100:처분가능, 201:질권, 202:압류
-    // bytes32 public constant DISPOSABLE_PARTITION = bytes32("100");
-    // bytes32 public constant PLEDGED_PARTITION = bytes32("201");
-    // bytes32 public constant SEIZED_PARTITION = bytes32("202");
-    // /// @dev 종목 소유자 목록 관리 구조체
-    // DoublyLinkedList.AddressList internal _holderList;
-    // /// @dev 종목 isin 코드
-    // bytes32 internal _isin;
-    // /// @dev 토큰 상태 유효 여부
-    // bool internal _activeStatus;
-    // /// @dev 거래 정지 여부
-    // bool internal _pausedStatus;
-    // /// @dev 화이트리스트 컨트랙트
-    // Whitelist internal _whitelistContract;
-    // /// @dev 642 계좌 별 수량 합계
-    // mapping (bytes32 => uint256) internal _ksdAccountBalancesSum;
-    // /// @dev (질권설정자 => 질권자) 수량 설정 정보
-    // mapping (address => mapping(address => uint256)) internal _pledgedAmount;
-    // /// @dev 처분제한 수량 합계: 총잔고수량 = 처분가능 + 질권 + 압류 + 처분제한수량합계(처분제한1 + 처분제한2 + ... + 처분제한n)
-    // mapping (address => uint256) internal _totalRestrictedDisposalBalance;
-    // /// @dev account의 642계좌
-    // mapping (address => bytes32) _ksdAccount;
-    // /// @dev 업무구분전표일련번호 총 발행 수량
-    // mapping (bytes32 => uint256) internal _totalIssueAmount;
-    // /// @dev 업무구분전표일련번호 총 말소 수량
-    // mapping (bytes32 => uint256) internal _totalErasureAmount;
-    // /// @dev 업무구분전표일련번호 발행 가능 수량
-    // mapping (bytes32 => uint256) internal _totalIssuableCap;
-    // /// @dev 업무구분전표일련번호 말소 가능 수량
-    // mapping (bytes32 => uint256) internal _totalErasableCap;
-    // /// @dev 업무구분전표일련번호 642계좌 발행 수량
-    // mapping (bytes32 => mapping (bytes32 => uint256)) internal _ksdAccountIssueAmount;
-    // /// @dev 업무구분전표일련번호 642계좌 말소 수량
-    // mapping (bytes32 => mapping (bytes32 => uint256)) internal _ksdAccountErasureAmount;
-    // /// @dev 업무구분전표일련번호 642계좌 발행 가능 수량
-    // mapping (bytes32 => mapping (bytes32 => uint256)) internal _ksdAccountIssuableCap;
-    // /// @dev 업무구분전표일련번호 642계좌 말소 가능 수량
-    // mapping (bytes32 => mapping (bytes32 => uint256)) internal _ksdAccountErasableCap;
-    // /// @dev 업무구분전표일련번호 발행 가능 642계좌 리스트
-    // mapping (bytes32 => bytes32[]) internal _ksdAccountIssueList;
-    // /// @dev 업무구분전표일련번호 말소 가능 642계좌 리스트
-    // mapping (bytes32 => bytes32[]) internal _ksdAccountErasureList;
-    // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 }
