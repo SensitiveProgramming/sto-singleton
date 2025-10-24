@@ -1,6 +1,6 @@
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers, config } from "hardhat";
-import { toBytes, printEvent, printReceiptEvent, loadAbi } from "../common/common";
+import { toBytes, printEvent, printReceiptEvent, loadAbi, printAbi } from "../common/common";
 
 // New Gateway Logic Contract
 import { Gateway_V1_02 } from "../../typechain-types";
@@ -19,16 +19,16 @@ describe("TokenRegister", async function () {
 
         gw = await ethers.getContractAt(gwContractName, gatewayProxyAddress);
         loadAbi();
+        printAbi();
     });
 
     it("Gateway tokenRegister", async function() {
-        // receipt = await (await gw.tokenRegister(toBytes("KRTESTAAAA02"), {gasLimit: 0x1fffffffffffff})).wait();
-        // console.log(receipt?.hash);
-        // await printReceiptEvent(receipt?.hash, false);
-        await printReceiptEvent("0xae4e9d1fbcee17aedaff1c1b116005317df54b3c88e09ee2700972f3ed01f93f", false);
+        // receipt = await (await gw.tokenRegister(toBytes("KRTESTAAAA03"), {gasLimit: 0x1fffffffffffff})).wait().catch(e => e.receipt || {status:0});
+        // await printReceiptEvent(receipt?.hash, true);
+        // await printReceiptEvent("0x979f8dfedc40d9412a680567ca88dccdd6ab275510824ad6fe63a7de9eed8126", true);
     });
 
     // it("Gateway tokenQueryInfo", async function() {
-    //     console.log(await gw.tokenQueryInfo(toBytes("KRTESTAAAA02")));
+    //     console.log(await gw.tokenQueryInfo(toBytes("KRTESTAAAA03")));
     // });
 });

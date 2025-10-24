@@ -12,7 +12,7 @@ interface Data {
 }
 
 // abi paths
-let abiPaths:string[] = [];
+let abi:any[] = [];
 
 export function translateData(type:string, data:string) {
     try {
@@ -257,12 +257,8 @@ export async function printReceiptEvent(txHash:any, printJson:boolean) {
 
             let inAbiList:boolean = false;
 
-            for (let k=0; k<abiPaths.length; k++) {
-                const dir = abiPaths[k];
-                const file = fs.readFileSync(dir, 'utf-8');
-                const json = JSON.parse(file);
-
-                const iface = new ethers.Interface(json.abi);
+            for (let k=0; k<abi.length; k++) {
+                const iface = new ethers.Interface(abi[k]);
                 const parseError = iface.parseError(result.revertReason);
 
                 if (parseError == null) {
@@ -311,13 +307,8 @@ export async function printReceiptEvent(txHash:any, printJson:boolean) {
             for (let j=0; j<result.logs.length; j++) {
                 let inAbiList:boolean = false;
 
-                for (let k=0; k<abiPaths.length; k++) {
-                    const dir = abiPaths[k];
-                    const file = fs.readFileSync(dir, 'utf-8');
-                    const json = JSON.parse(file);
-
-                    const contractName = json.contractName;
-                    const iface = new ethers.Interface(json.abi);
+                for (let k=0; k<abi.length; k++) {
+                    const iface = new ethers.Interface(abi[k]);
                     const eventSelector = result.logs[j].topics[0];
                     let eventName;
 
@@ -424,28 +415,164 @@ export async function printReceiptEvent(txHash:any, printJson:boolean) {
 // }
 
 export function loadAbi() {
-    let entries;
-    let targetPath;
-    let target;
+    // 1. Whitelist abi loading
+    abi.push(getAbi(config.paths.artifacts.concat("\\contracts\\utils\\whitelist\\Whitelist.sol\\Whitelist.json")));
+
+    // 2. CurrencyToken abi loading
+    abi.push(getAbi(config.paths.artifacts.concat("\\contracts\\token\\currency\\CurrencyToken.sol\\CurrencyToken.json")));
+
+    // 3. SecurityToken abi loading
+    abi.push(getAbi(getRecentUpgradeableFilePath(config.paths.artifacts.concat("\\contracts\\token\\security\\upgradeable"))));
+
+    // 4. STOMatching abi loading
+    abi.push(getAbi(getRecentUpgradeableFilePath(config.paths.artifacts.concat("\\contracts\\matching\\upgradeable"))));
+
+    // 5. Gateway abi loading
+    abi.push(getAbi(getRecentUpgradeableFilePath(config.paths.artifacts.concat("\\contracts\\gateway\\upgradeable"))));
+}
+
+export function printAbi() {
+    let functionList = [];
+    let eventList = [];
+    let errorList = [];
+    let map = new Map<string, string>();
 
     try {
-        // 1. Whitelist abi loading
-        abiPaths.push(config.paths.artifacts.concat("\\contracts\\utils\\whitelist\\Whitelist.sol\\Whitelist.json"));
+        console.log("\n\u001b[1;34m[Functions]\u001b[0m");
+        for (let k=0; k<abi.length; k++) {
+            for (let i=0; i<abi[k].length; i++) {
+                let funcAbi:string = "";
 
-        // 2. CurrencyToken abi loading
-        abiPaths.push(config.paths.artifacts.concat("\\contracts\\token\\currency\\CurrencyToken.sol\\CurrencyToken.json"));
+                if (abi[k][i].type == 'function') {
+                    let keccakStr;
+                    funcAbi = funcAbi + abi[k][i].name + "(";
 
-        // 3. SecurityToken abi loading
-        abiPaths.push(getRecentUpgradeableAbi(config.paths.artifacts.concat("\\contracts\\token\\security\\upgradeable")));
+                    if (abi[k][i].inputs.length > 0) {
+                        funcAbi = funcAbi + abi[k][i].inputs[0].type;
 
-        // 4. STOMatching abi loading
-        abiPaths.push(getRecentUpgradeableAbi(config.paths.artifacts.concat("\\contracts\\matching\\upgradeable")));
+                        for (let j=1; j<abi[k][i].inputs.length; j++) {
+                            funcAbi = funcAbi + "," + abi[k][i].inputs[j].type;
+                        }
+                    }
 
-        // 5. Gateway abi loading
-        abiPaths.push(getRecentUpgradeableAbi(config.paths.artifacts.concat("\\contracts\\gateway\\upgradeable")));
-    } catch (error) {
-        console.error(`디렉토리를 읽는 중 오류 발생: ${error}`);
+                    funcAbi = funcAbi + ")";
+                    keccakStr = keccak(funcAbi).substring(0, 10);
+
+                    if (abi[k][i].outputs!.length > 0) {
+                        funcAbi = funcAbi + " returns (";
+                        funcAbi = funcAbi + abi[k][i].outputs[0].type;
+
+                        for (let j=1; j<abi[k][i].outputs!.length; j++) {
+                            funcAbi = funcAbi + "," + abi[k][i].outputs![j].type;
+                        }
+
+                        funcAbi = funcAbi + ")";
+                    }
+
+                    // console.log(keccakStr + " " + funcAbi);
+
+                    if (!map.has(funcAbi)) {
+                        map.set(funcAbi, keccakStr);
+                        functionList.push(funcAbi);
+                    }
+                }
+            }
+        }
+
+        functionList.sort();
+        for (let i=0; i<functionList.length; i++) {
+            console.log(map.get(functionList[i]) + "|" + functionList[i]);
+        }
+        map.clear;
+
+        console.log("\n\u001b[1;34m[Events]\u001b[0m");
+        for (let k=0; k<abi.length; k++) {
+            for (let i=0; i<abi[k].length; i++) {
+                let funcAbi:string = "";
+                let fullStr:string = "";
+
+                if (abi[k][i].type == 'event') {
+                    funcAbi = funcAbi + abi[k][i].name + "(";
+                    fullStr = fullStr + abi[k][i].name + "(";
+
+                    if (abi[k][i].inputs.length > 0) {
+                        funcAbi = funcAbi + abi[k][i].inputs[0].type;
+                        fullStr = fullStr + abi[k][i].inputs[0].type + " " + abi[k][i].inputs[0].name;
+
+                        for (let j=1; j<abi[k][i].inputs.length; j++) {
+                            funcAbi = funcAbi + "," + abi[k][i].inputs[j].type;
+                            fullStr = fullStr + ", " + abi[k][i].inputs[j].type + " " + abi[k][i].inputs[j].name;
+                        }
+                    }
+                    
+                    funcAbi = funcAbi + ")";
+                    fullStr = fullStr + ")";
+                    // console.log(keccak(funcAbi) + " " + funcAbi);
+                    // console.log(keccak(funcAbi) + "|" + fullStr);
+
+                    if (!map.has(fullStr)) {
+                        map.set(fullStr, keccak(funcAbi));
+                        eventList.push(fullStr);
+                    }
+                }
+            }
+        }
+
+        eventList.sort();
+        for (let i=0; i<eventList.length; i++) {
+            console.log(map.get(eventList[i]) + "|" + eventList[i]);
+        }
+        map.clear;
+
+        console.log("\n\u001b[1;34m[Errors]\u001b[0m");
+        for (let k=0; k<abi.length; k++) {
+            for (let i=0; i<abi[k].length; i++) {
+                let funcAbi:string = "";
+                let fullStr:string = "";
+
+                if (abi[k][i].type == 'error') {
+                    // console.log(abi[k][i]);
+                    funcAbi = funcAbi + abi[k][i].name + "(";
+                    fullStr = fullStr + abi[k][i].name + "(";
+
+                    if (abi[k][i].inputs.length > 0) {
+                        funcAbi = funcAbi + abi[k][i].inputs[0].type;
+                        fullStr = fullStr + abi[k][i].inputs[0].type + " " + abi[k][i].inputs[0].name;
+
+                        for (let j=1; j<abi[k][i].inputs.length; j++) {
+                            funcAbi = funcAbi + "," + abi[k][i].inputs[j].type;
+                            fullStr = fullStr + ", " + abi[k][i].inputs[j].type + " " + abi[k][i].inputs[j].name;
+                        }
+                    }
+
+                    funcAbi = funcAbi + ")";
+                    fullStr = fullStr + ")";
+                    // console.log(keccak(funcAbi).substring(0, 10) + " " + funcAbi);
+                    // console.log(keccak(funcAbi).substring(0, 10) + "|" + fullStr);
+
+                    if (!map.has(fullStr)) {
+                        map.set(fullStr, keccak(funcAbi).substring(0, 10));
+                        errorList.push(fullStr);
+                    }
+                }
+            }
+        }
+
+        errorList.sort();
+        for (let i=0; i<errorList.length; i++) {
+            console.log(map.get(errorList[i]) + "|" + errorList[i]);
+        }
+        map.clear;
+    } catch(error) {
+        console.log("오류 메시지: ");
+        if (error instanceof Error) {
+            console.log(error.message);
+        }
     }
+}
+
+export function keccak(data:string) {
+    return ethers.keccak256(new TextEncoder().encode(data));
 }
 
 function consoleTable(input:any) {
@@ -505,7 +632,7 @@ function consoleTable(input:any) {
     console.log(r);
 }
 
-function getRecentUpgradeableAbi(upgradeablePath:string) {
+function getRecentUpgradeableFilePath(upgradeablePath:string) {
     let targetPath = upgradeablePath;
     let entries;
 
@@ -526,6 +653,13 @@ function getRecentUpgradeableAbi(upgradeablePath:string) {
     }
 
     return "";
+}
+
+function getAbi(abiFilePath:string) {
+    const dir = path.resolve(__dirname, abiFilePath);
+    const file = fs.readFileSync(dir, 'utf-8');
+    const json = JSON.parse(file);
+    return json.abi;
 }
 
 function max(a:number, b:number, c:number) {

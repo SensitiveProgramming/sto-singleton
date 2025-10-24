@@ -1,6 +1,6 @@
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers, config } from "hardhat";
-import { printReceiptEvent } from "../common/common";
+import { loadAbi, printReceiptEvent } from "../common/common";
 
 // New Gateway Logic Contract
 import { Gateway_V1_02 } from "../../typechain-types";
@@ -25,6 +25,7 @@ describe("GatewayUpgrade", async function () {
         [deployer] = await ethers.getSigners();
 
         gw = await ethers.getContractAt(newContractName, gatewayProxyAddress);
+        loadAbi();
     });
 
     it("Gateway Upgrade", async function() {
@@ -41,6 +42,6 @@ describe("GatewayUpgrade", async function () {
         console.log("Gateway New Version: " + await gw.getVersion());
         console.log(abiPathList[0].toString());
 
-        await printReceiptEvent(receipt?.hash, abiPathList, false);
+        await printReceiptEvent(receipt?.hash, false);
     });
 });

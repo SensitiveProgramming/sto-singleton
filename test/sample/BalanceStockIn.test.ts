@@ -71,7 +71,7 @@ describe("BalanceStockIn", async function () {
             toBytes("111"), 
             toBytes("")
         )).wait();
-        await printReceiptEvent(receipt?.hash, abiPathList, false);
+        await printReceiptEvent(receipt?.hash, false);
     });
 
     it("Gateway accountQueryBalanceByIsuNo", async function() {
