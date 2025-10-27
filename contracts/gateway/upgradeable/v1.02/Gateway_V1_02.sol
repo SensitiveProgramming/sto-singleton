@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import "../../../matching/STOMatchingStruct.sol";
 import {ISTOMatching} from "../../../matching/ISTOMatching.sol";
 import {Gateway_V1} from "../v1/Gateway_V1.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract Gateway_V1_02 is Gateway_V1 {
     constructor(string memory version) Gateway_V1(version) {
@@ -154,8 +154,8 @@ contract Gateway_V1_02 is Gateway_V1 {
         (Quote[] memory askQuote, Quote[] memory bidQuote) = ISTOMatching(_stoMatching).getAllQuoteList(tokenAddress);
         uint256 askLength = askQuote.length;
         uint256 bidLength = bidQuote.length;
-        console.log("askLength:", askLength);
-        console.log("bidLength:", bidLength);
+        // console.log("askLength:", askLength);
+        // console.log("bidLength:", bidLength);
 
         askPrice = new uint256[](askLength);
         askOrderCntAtPx = new uint256[](askLength);
