@@ -101,7 +101,7 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
         return _totalSupply;
     }
 
-    function allBalanceOf(address account) external view returns (bytes32[] memory, uint256[] memory) {
+    function allBalanceOf(address account) external view virtual returns (bytes32[] memory, uint256[] memory) {
         bytes32[] memory balTp = new bytes32[](9);
         uint256[] memory balances = new uint256[](9);
 
@@ -166,7 +166,7 @@ contract SecurityTokenUpgradeable is STOSelectableUpgradeable, IERC20Lock {
         return _partitionBalances[BalTp_99][account];
     }
 
-    function _update(bytes32 partitionFrom, address accountFrom, bytes32 partitionTo, address accountTo, uint256 qty) internal {
+    function _update(bytes32 partitionFrom, address accountFrom, bytes32 partitionTo, address accountTo, uint256 qty) internal virtual {
         ( bool statusFrom, bytes32 ittFrom, ) = IWhitelist(_whitelist).getAddressInfo(accountFrom);
         ( bool statusTo, bytes32 ittTo, ) = IWhitelist(_whitelist).getAddressInfo(accountTo);
 

@@ -14,42 +14,6 @@ interface Data {
 // abi paths
 let abi:any[] = [];
 
-export function translateData(type:string, data:string) {
-    try {
-        if (type.includes("uint")) {
-            return [data, ethers.toBeHex(data, 32).substring(2)];
-        } else if (type == "bytes") {
-            let resultStr = ethers.toUtf8String(data).replace(/\x00/g, ' ');
-            if (resultStr.length == 0) {
-                return ["(null)", "(null)"];
-            } else {
-                return [resultStr, data.substring(2)];
-            }
-        } else if (type.includes("bytes")) {
-            let resultStr = ethers.decodeBytes32String(data);
-            if (resultStr.length == 0) {
-                return ["", data.substring(2)];
-            } else {
-                return [resultStr, data.substring(2)];
-            }
-        } else if (type == "address") {
-            return [data, ethers.zeroPadValue(data, 32).substring(2)];
-        } else if (type == "string") {
-            return [data, ethers.hexlify(ethers.toUtf8Bytes(data)).substring(2)];
-        } else {
-            return ["(undefined type)", "(undefined type)"];
-        }
-    } catch(error) {
-        if (error instanceof Error) {
-            if (error.message.includes("invalid bytes32 string") || error.message.includes("invalid BytesLike value")) {
-                return ["", data.substring(2)];
-            }
-        }
-
-        throw error;
-    }
-}
-
 export function toBytes(data:string) {
     return ethers.encodeBytes32String(data);
 }
@@ -305,152 +269,11 @@ export function loadAbi() {
     abi.push(getAbi(getRecentUpgradeableFilePath(config.paths.artifacts.concat("\\contracts\\gateway\\upgradeable"))));
 }
 
-// export function printAllAbi() {
-//     let functionList = [];
-//     let eventList = [];
-//     let errorList = [];
-//     let map = new Map<string, string>();
-
-//     try {
-//         console.log("\n\u001b[1;34m[Functions]\u001b[0m");
-//         for (let k=0; k<abi.length; k++) {
-//             for (let i=0; i<abi[k].length; i++) {
-//                 let funcAbi:string = "";
-
-//                 if (abi[k][i].type == 'function') {
-//                     let keccakStr;
-
-//                     funcAbi = funcAbi + abi[k][i].name + "(";
-
-//                     if (abi[k][i].inputs.length > 0) {
-//                         funcAbi = funcAbi + abi[k][i].inputs[0].type;
-
-//                         for (let j=1; j<abi[k][i].inputs.length; j++) {
-//                             funcAbi = funcAbi + "," + abi[k][i].inputs[j].type;
-//                         }
-//                     }
-
-//                     funcAbi = funcAbi + ")";
-//                     keccakStr = keccak(funcAbi).substring(0, 10);
-
-//                     if (abi[k][i].outputs!.length > 0) {
-//                         funcAbi = funcAbi + " returns (";
-//                         funcAbi = funcAbi + abi[k][i].outputs[0].type;
-
-//                         for (let j=1; j<abi[k][i].outputs!.length; j++) {
-//                             funcAbi = funcAbi + "," + abi[k][i].outputs![j].type;
-//                         }
-
-//                         funcAbi = funcAbi + ")";
-//                     }
-
-//                     // console.log(keccakStr + " " + funcAbi);
-
-//                     if (!map.has(funcAbi)) {
-//                         map.set(funcAbi, keccakStr);
-//                         functionList.push(funcAbi);
-//                     }
-//                 }
-//             }
-//         }
-
-//         functionList.sort();
-//         for (let i=0; i<functionList.length; i++) {
-//             console.log(map.get(functionList[i]) + "|" + functionList[i]);
-//         }
-//         map.clear;
-
-//         console.log("\n\u001b[1;34m[Events]\u001b[0m");
-//         for (let k=0; k<abi.length; k++) {
-//             for (let i=0; i<abi[k].length; i++) {
-//                 let funcAbi:string = "";
-//                 let fullStr:string = "";
-
-//                 if (abi[k][i].type == 'event') {
-//                     funcAbi = funcAbi + abi[k][i].name + "(";
-//                     fullStr = fullStr + abi[k][i].name + "(";
-
-//                     if (abi[k][i].inputs.length > 0) {
-//                         funcAbi = funcAbi + abi[k][i].inputs[0].type;
-//                         fullStr = fullStr + abi[k][i].inputs[0].type + " " + abi[k][i].inputs[0].name;
-
-//                         for (let j=1; j<abi[k][i].inputs.length; j++) {
-//                             funcAbi = funcAbi + "," + abi[k][i].inputs[j].type;
-//                             fullStr = fullStr + ", " + abi[k][i].inputs[j].type + " " + abi[k][i].inputs[j].name;
-//                         }
-//                     }
-                    
-//                     funcAbi = funcAbi + ")";
-//                     fullStr = fullStr + ")";
-//                     // console.log(keccak(funcAbi) + " " + funcAbi);
-//                     // console.log(keccak(funcAbi) + "|" + fullStr);
-
-//                     if (!map.has(fullStr)) {
-//                         map.set(fullStr, keccak(funcAbi));
-//                         eventList.push(fullStr);
-//                     }
-//                 }
-//             }
-//         }
-
-//         eventList.sort();
-//         for (let i=0; i<eventList.length; i++) {
-//             console.log(map.get(eventList[i]) + "|" + eventList[i]);
-//         }
-//         map.clear;
-
-//         console.log("\n\u001b[1;34m[Errors]\u001b[0m");
-//         for (let k=0; k<abi.length; k++) {
-//             for (let i=0; i<abi[k].length; i++) {
-//                 let funcAbi:string = "";
-//                 let fullStr:string = "";
-
-//                 if (abi[k][i].type == 'error') {
-//                     // console.log(abi[k][i]);
-//                     funcAbi = funcAbi + abi[k][i].name + "(";
-//                     fullStr = fullStr + abi[k][i].name + "(";
-
-//                     if (abi[k][i].inputs.length > 0) {
-//                         funcAbi = funcAbi + abi[k][i].inputs[0].type;
-//                         fullStr = fullStr + abi[k][i].inputs[0].type + " " + abi[k][i].inputs[0].name;
-
-//                         for (let j=1; j<abi[k][i].inputs.length; j++) {
-//                             funcAbi = funcAbi + "," + abi[k][i].inputs[j].type;
-//                             fullStr = fullStr + ", " + abi[k][i].inputs[j].type + " " + abi[k][i].inputs[j].name;
-//                         }
-//                     }
-
-//                     funcAbi = funcAbi + ")";
-//                     fullStr = fullStr + ")";
-//                     // console.log(keccak(funcAbi).substring(0, 10) + " " + funcAbi);
-//                     // console.log(keccak(funcAbi).substring(0, 10) + "|" + fullStr);
-
-//                     if (!map.has(fullStr)) {
-//                         map.set(fullStr, keccak(funcAbi).substring(0, 10));
-//                         errorList.push(fullStr);
-//                     }
-//                 }
-//             }
-//         }
-
-//         errorList.sort();
-//         for (let i=0; i<errorList.length; i++) {
-//             console.log(map.get(errorList[i]) + "|" + errorList[i]);
-//         }
-//         map.clear;
-//     } catch(error) {
-//         console.log("오류 메시지: ");
-//         if (error instanceof Error) {
-//             console.log(error.message);
-//         }
-//     }
-// }
-
 export function printAbi(abiPath:string, minimal:boolean) {
     let functionList:string[] = [];
     let eventList:string[] = [];
     let errorList:string[] = [];
-    const delimiter = "|"
+    const delimiter = "|";
 
     let abi = getAbi(abiPath);
 
@@ -544,121 +367,146 @@ export function printAllAbi(minimal:boolean) {
     let functionList:string[] = [];
     let eventList:string[] = [];
     let errorList:string[] = [];
-    let map = new Map<string, string>();
+    let map = new Map<string, boolean>();
     const delimiter = "|";
+
+    console.log(abi.length);
+    for (let k=0; k<abi.length; k++) {
+        for (let i=0; i<abi[k].length; i++) {
+            if (abi[k][i].type == "constructor") {
+                continue;
+            }
+
+            let funcAbi:string = abi[k][i].name + "(";
+            let fullStr:string = funcAbi
+            let keccakStr;
+
+            for (let j=0; j<abi[k][i].inputs.length; j++) {
+                let [sig, str] = getAbiSignature(abi[k][i].inputs[j]);
+
+                if (j == 0) {
+                    funcAbi = funcAbi + sig;
+                    fullStr = fullStr + str;
+                } else {
+                    funcAbi = funcAbi + "," + sig;
+                    fullStr = fullStr + ", " + str;
+                }
+            }
+
+            funcAbi = funcAbi + ")";
+            fullStr = fullStr + ")";
+
+            if (!map.has(funcAbi)) {
+                map.set(funcAbi, true);
+
+                if (abi[k][i].type == 'function') {
+                    keccakStr = ethers.keccak256(new TextEncoder().encode(funcAbi)).substring(0, 10);
+
+                    if (abi[k][i].outputs.length > 0) {
+                        for (let j=0; j<abi[k][i].outputs.length; j++) {
+                            let [sig, str] = getAbiSignature(abi[k][i].outputs[j]);
+
+                            if (j == 0) {
+                                funcAbi = funcAbi + " returns (" + sig;
+                                fullStr = fullStr + " returns (" + str;
+                            } else {
+                                funcAbi = funcAbi + "," + sig;
+                                fullStr = fullStr + ", " + str;
+                            }
+                        }
+
+                        funcAbi = funcAbi + ")";
+                        fullStr = fullStr + ")";
+                    }
+
+                    if (minimal) {
+                        functionList.push(funcAbi + delimiter + keccakStr);
+                    } else {
+                        functionList.push(fullStr + delimiter + keccakStr);
+                    }
+                } else if (abi[k][i].type == 'event') {
+                    keccakStr = ethers.keccak256(new TextEncoder().encode(funcAbi));
+
+                    if (minimal) {
+                        eventList.push(funcAbi + delimiter + keccakStr);
+                    } else {
+                        eventList.push(fullStr + delimiter + keccakStr);
+                    }
+                } else if (abi[k][i].type == 'error') {
+                    keccakStr = ethers.keccak256(new TextEncoder().encode(funcAbi)).substring(0, 10);
+
+                    if (minimal) {
+                        errorList.push(funcAbi + delimiter + keccakStr);
+                    } else {
+                        errorList.push(fullStr + delimiter + keccakStr);
+                    }
+                } else {
+                    throw "undefined input type: " + abi[k][i].type;
+                }
+            }
+        }
+    }
+
+    console.log("\n\u001b[1;34m[Functions]\u001b[0m");
+    functionList.sort();
+    for (let i=0; i<functionList.length; i++) {
+        const tmpStr = functionList[i].split("|");
+        console.log(tmpStr[1] + delimiter + tmpStr[0]);
+    }
+
+    console.log("\n\u001b[1;34m[Events]\u001b[0m");
+    eventList.sort();
+    for (let i=0; i<eventList.length; i++) {
+        const tmpStr = eventList[i].split("|");
+        console.log(tmpStr[1] + delimiter + tmpStr[0]);
+    }
+
+    console.log("\n\u001b[1;34m[Errors]\u001b[0m");
+    errorList.sort();
+    for (let i=0; i<errorList.length; i++) {
+        const tmpStr = errorList[i].split("|");
+        console.log(tmpStr[1] + delimiter + tmpStr[0]);
+    }
 }
-
-// export function printAbi(abiPath:string) {
-//     try {
-//         let abi = getAbi(abiPath);
-//         const delimiter = "|"
-
-//         console.log("\n\u001b[1;34m[Functions]\u001b[0m");
-//         for (let i=0; i<abi.length; i++) {
-//             let funcAbi:string = "";
-//             let fullStr:string = "";
-
-//             if (abi[i].type == 'function') {
-//                 let keccakStr;
-//                 funcAbi = funcAbi + abi[i].name + "(";
-//                 fullStr = fullStr + abi[i].name + "(";
-
-//                 if (abi[i].inputs.length > 0) {
-//                     funcAbi = funcAbi + abi[i].inputs[0].type;
-//                     fullStr = fullStr + abi[i].inputs[0].type + " " + abi[i].inputs[0].name;
-
-//                     for (let j=1; j<abi[i].inputs.length; j++) {
-//                         funcAbi = funcAbi + "," + abi[i].inputs[j].type;
-//                         fullStr = fullStr + ", " + abi[i].inputs[j].type + " " + abi[i].inputs[j].name;
-//                     }
-//                 }
-
-//                 funcAbi = funcAbi + ")";
-//                 fullStr = fullStr + ")";
-//                 keccakStr = keccak(funcAbi).substring(0, 10);
-
-//                 if (abi[i].outputs.length > 0) {
-//                     funcAbi = funcAbi + " returns (";
-//                     funcAbi = funcAbi + abi[i].outputs[0].type;
-
-//                     fullStr = fullStr + " returns (";
-//                     fullStr = fullStr + abi[i].outputs[0].type + " " + abi[i].outputs[0].name;
-
-//                     for (let j=1; j<abi[i].outputs!.length; j++) {
-//                         funcAbi = funcAbi + "," + abi[i].outputs[j].type;
-//                         fullStr = fullStr + ", " + abi[i].outputs[j].type + " " + abi[i].outputs[j].name;
-//                     }
-
-//                     funcAbi = funcAbi + ")";
-//                     fullStr = fullStr + ")";
-//                 }
-
-//                 // console.log(keccakStr + " " + funcAbi);
-//                 console.log(keccakStr + delimiter + fullStr);
-//             }
-//         }
-
-//         console.log("\n\u001b[1;34m[Events]\u001b[0m");
-//         for (let i=0; i<abi.length; i++) {
-//             let funcAbi:string = "";
-//             let fullStr:string = "";
-
-//             if (abi[i].type == 'event') {
-//                 funcAbi = funcAbi + abi[i].name + "(";
-//                 fullStr = fullStr + abi[i].name + "(";
-
-//                 if (abi[i].inputs.length > 0) {
-//                     funcAbi = funcAbi + abi[i].inputs[0].type;
-//                     fullStr = fullStr + abi[i].inputs[0].type + " " + abi[i].inputs[0].name;
-
-//                     for (let j=1; j<abi[i].inputs.length; j++) {
-//                         funcAbi = funcAbi + "," + abi[i].inputs[j].type;
-//                         fullStr = fullStr + ", " + abi[i].inputs[j].type + " " + abi[i].inputs[j].name;
-//                     }
-//                 }
-
-//                 funcAbi = funcAbi + ")";
-//                 fullStr = fullStr + ")";
-//                 // console.log(keccak(funcAbi) + " " + funcAbi);
-//                 console.log(keccak(funcAbi) + delimiter + fullStr);
-//             }
-//         }
-
-//         console.log("\n\u001b[1;34m[Errors]\u001b[0m");
-//         for (let i=0; i<abi.length; i++) {
-//             let funcAbi:string = "";
-//             let fullStr:string = "";
-
-//             if (abi[i].type == 'error') {
-//                 funcAbi = funcAbi + abi[i].name + "(";
-//                 fullStr = fullStr + abi[i].name + "(";
-
-//                 if (abi[i].inputs.length > 0) {
-//                     funcAbi = funcAbi + abi[i].inputs[0].type;
-//                     fullStr = fullStr + abi[i].inputs[0].type + " " + abi[i].inputs[0].name;
-
-//                     for (let j=1; j<abi[i].inputs.length; j++) {
-//                         funcAbi = funcAbi + "," + abi[i].inputs[j].type;
-//                         fullStr = fullStr + ", " + abi[i].inputs[j].type + " " + abi[i].inputs[j].name;
-//                     }
-//                 }
-
-//                 funcAbi = funcAbi + ")";
-//                 fullStr = fullStr + ")";
-//                 // console.log(keccak(funcAbi).substring(0, 10) + " " + abi[i].name);
-//                 console.log(keccak(funcAbi).substring(0, 10) + delimiter + fullStr);
-//             }
-//         }
-//     } catch(error) {
-//         console.log("오류 메시지: ");
-//         if (error instanceof Error) {
-//             console.log(error.message);
-//         }
-//     }
-// }
 
 export function keccak(data:string) {
     return ethers.keccak256(new TextEncoder().encode(data));
+}
+
+function translateData(type:string, data:string) {
+    try {
+        if (type.includes("uint")) {
+            return [data, ethers.toBeHex(data, 32).substring(2)];
+        } else if (type == "bytes") {
+            let resultStr = ethers.toUtf8String(data).replace(/\x00/g, ' ');
+            if (resultStr.length == 0) {
+                return ["(null)", "(null)"];
+            } else {
+                return [resultStr, data.substring(2)];
+            }
+        } else if (type.includes("bytes")) {
+            let resultStr = ethers.decodeBytes32String(data);
+            if (resultStr.length == 0) {
+                return ["", data.substring(2)];
+            } else {
+                return [resultStr, data.substring(2)];
+            }
+        } else if (type == "address") {
+            return [data, ethers.zeroPadValue(data, 32).substring(2)];
+        } else if (type == "string") {
+            return [data, ethers.hexlify(ethers.toUtf8Bytes(data)).substring(2)];
+        } else {
+            return ["(undefined type)", "(undefined type)"];
+        }
+    } catch(error) {
+        if (error instanceof Error) {
+            if (error.message.includes("invalid bytes32 string") || error.message.includes("invalid BytesLike value")) {
+                return ["", data.substring(2)];
+            }
+        }
+
+        throw error;
+    }
 }
 
 function consoleTable(input:any) {
