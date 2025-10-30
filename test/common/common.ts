@@ -18,6 +18,42 @@ export function toBytes(data:string) {
     return ethers.encodeBytes32String(data);
 }
 
+export function translateData(type:string, data:string) {
+    try {
+        if (type.includes("uint")) {
+            return [data, ethers.toBeHex(data, 32).substring(2)];
+        } else if (type == "bytes") {
+            let resultStr = ethers.toUtf8String(data).replace(/\x00/g, ' ');
+            if (resultStr.length == 0) {
+                return ["(null)", "(null)"];
+            } else {
+                return [resultStr, data.substring(2)];
+            }
+        } else if (type.includes("bytes")) {
+            let resultStr = ethers.decodeBytes32String(data);
+            if (resultStr.length == 0) {
+                return ["", data.substring(2)];
+            } else {
+                return [resultStr, data.substring(2)];
+            }
+        } else if (type == "address") {
+            return [data, ethers.zeroPadValue(data, 32).substring(2)];
+        } else if (type == "string") {
+            return [data, ethers.hexlify(ethers.toUtf8Bytes(data)).substring(2)];
+        } else {
+            return ["(undefined type)", "(undefined type)"];
+        }
+    } catch(error) {
+        if (error instanceof Error) {
+            if (error.message.includes("invalid bytes32 string") || error.message.includes("invalid BytesLike value")) {
+                return ["", data.substring(2)];
+            }
+        }
+
+        throw error;
+    }
+}
+
 export function printEvent(receipt:any, eventName:any[]) {
     let logs = receipt?.logs;
     let isPrint = false;
@@ -473,42 +509,6 @@ export function keccak(data:string) {
     return ethers.keccak256(new TextEncoder().encode(data));
 }
 
-function translateData(type:string, data:string) {
-    try {
-        if (type.includes("uint")) {
-            return [data, ethers.toBeHex(data, 32).substring(2)];
-        } else if (type == "bytes") {
-            let resultStr = ethers.toUtf8String(data).replace(/\x00/g, ' ');
-            if (resultStr.length == 0) {
-                return ["(null)", "(null)"];
-            } else {
-                return [resultStr, data.substring(2)];
-            }
-        } else if (type.includes("bytes")) {
-            let resultStr = ethers.decodeBytes32String(data);
-            if (resultStr.length == 0) {
-                return ["", data.substring(2)];
-            } else {
-                return [resultStr, data.substring(2)];
-            }
-        } else if (type == "address") {
-            return [data, ethers.zeroPadValue(data, 32).substring(2)];
-        } else if (type == "string") {
-            return [data, ethers.hexlify(ethers.toUtf8Bytes(data)).substring(2)];
-        } else {
-            return ["(undefined type)", "(undefined type)"];
-        }
-    } catch(error) {
-        if (error instanceof Error) {
-            if (error.message.includes("invalid bytes32 string") || error.message.includes("invalid BytesLike value")) {
-                return ["", data.substring(2)];
-            }
-        }
-
-        throw error;
-    }
-}
-
 function consoleTable(input:any) {
     const keys = Object.keys(input[0]);
     let keyLen:any[] = [];
@@ -589,7 +589,7 @@ function getRecentUpgradeableFilePath(upgradeablePath:string) {
     return "";
 }
 
-function getAbi(abiFilePath:string) {
+export function getAbi(abiFilePath:string) {
     const dir = path.resolve(__dirname, abiFilePath);
     const file = fs.readFileSync(dir, 'utf-8');
     const json = JSON.parse(file);
